@@ -16,6 +16,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 
 @RestController
+@RequestMapping("/")
 public class FileController {
 
     @Autowired
@@ -33,7 +34,7 @@ public class FileController {
     }
 
     @GetMapping("/download/{fileName:.+}")
-    public ResponseEntity<Resource> downloadFile(@PathVariable("fileName") String fileName, HttpServletRequest request) {
+    public ResponseEntity<Resource> getFile(@PathVariable("fileName") String fileName, HttpServletRequest request) {
 
         try {
             Resource resource = fileService.downloadFile(fileName);
@@ -58,5 +59,16 @@ public class FileController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
+    }
+
+    @DeleteMapping("/delete/{fileName:.+}")
+    public ResponseEntity<?> deleteFile(@PathVariable("fileName") String fileName) {
+        try {
+            fileService.deleteFile(fileName);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+
+        return ResponseEntity.ok("File deleted successfully");
     }
 }

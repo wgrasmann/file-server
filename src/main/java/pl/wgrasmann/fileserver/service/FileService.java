@@ -4,6 +4,7 @@ import org.apache.tomcat.util.http.fileupload.FileUploadException;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
+import org.springframework.util.FileSystemUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import pl.wgrasmann.fileserver.exception.MyFileNotFoundException;
@@ -16,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Objects;
 
 @Service
 public class FileService {
@@ -34,7 +36,7 @@ public class FileService {
     }
 
     public void uploadFile(MultipartFile file) throws FileUploadException {
-        String fileName = StringUtils.cleanPath(file.getOriginalFilename());
+        String fileName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
         try {
             // Check if the file's name contains invalid characters
 //            if(fileName.contains("..")) {
@@ -62,6 +64,21 @@ public class FileService {
             }
         } catch (MalformedURLException ex) {
             throw new MyFileNotFoundException("File not fount " + fileName, ex);
+        }
+    }
+
+    public void deleteFile(String fileName) {
+        try {
+            Path filePath = this.fileStorageLocation.resolve(fileName).normalize();
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists()) {
+                FileSystemUtils.deleteRecursively(filePath);
+            } else {
+                throw new MyFileNotFoundException("File not fount " + fileName);
+            }
+        } catch (MyFileNotFoundException | IOException ex) {
+            throw new MyFileNotFoundException("Could not delete file " + fileName, ex);
         }
     }
 }
