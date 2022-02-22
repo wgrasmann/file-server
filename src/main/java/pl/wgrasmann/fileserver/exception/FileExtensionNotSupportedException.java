@@ -1,11 +1,11 @@
 package pl.wgrasmann.fileserver.exception;
 
-public class MyFileNotFoundException extends RuntimeException {
-    public MyFileNotFoundException(String message) {
+public class FileExtensionNotSupportedException extends RuntimeException {
+    public FileExtensionNotSupportedException(String message) {
         super(message);
     }
 
-    public MyFileNotFoundException(String message, Throwable cause) {
+    public FileExtensionNotSupportedException(String message, Throwable cause) {
         super(message, cause);
     }
 }

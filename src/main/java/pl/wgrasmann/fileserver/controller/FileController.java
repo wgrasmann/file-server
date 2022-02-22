@@ -3,24 +3,31 @@ package pl.wgrasmann.fileserver.controller;
 import org.apache.tomcat.util.http.fileupload.FileUploadException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import pl.wgrasmann.fileserver.exception.MyFileNotFoundException;
+import pl.wgrasmann.fileserver.factory.HttpHeadersFactory;
+import pl.wgrasmann.fileserver.model.FileMetadata;
+import pl.wgrasmann.fileserver.service.FileMetadataService;
 import pl.wgrasmann.fileserver.service.FileService;
 
 import javax.servlet.http.HttpServletRequest;
-import java.io.IOException;
 
 @RestController
-@RequestMapping("/")
+@RequestMapping("/file")
 public class FileController {
 
+    private final FileService fileService;
+    private final FileMetadataService fileMetadataService;
+    private final HttpHeadersFactory httpHeadersFactory;
+
     @Autowired
-    private FileService fileService;
+    public FileController(FileService fileService, HttpHeadersFactory httpHeadersFactory, FileMetadataService fileMetadataService) {
+        this.fileService = fileService;
+        this.httpHeadersFactory = httpHeadersFactory;
+        this.fileMetadataService = fileMetadataService;
+    }
 
     @PostMapping("/upload")
     public ResponseEntity<?> uploadFile(@RequestParam("file")MultipartFile file) {
@@ -33,27 +40,17 @@ public class FileController {
         return ResponseEntity.ok("File uploaded successfully");
     }
 
-    @GetMapping("/download/{fileName:.+}")
-    public ResponseEntity<Resource> getFile(@PathVariable("fileName") String fileName, HttpServletRequest request) {
+    @GetMapping("/read/{id}")
+    public ResponseEntity<Resource> getFile(@PathVariable("id") Long id) {
 
         try {
-            Resource resource = fileService.downloadFile(fileName);
-
-            String contentType = null;
-            try {
-                contentType = request.getServletContext().getMimeType(resource.getFile().getAbsolutePath());
-            } catch (IOException ex) {
-//                logger.info("Could not determine file type.");
-            }
-
-            // Fallback to the default content type if type could not be determined
-            if(contentType == null) {
-                contentType = "application/octet-stream";
-            }
+            FileMetadata fileMetadata = fileMetadataService.findFileMetadataByFileId(id);
+            Resource resource = fileService.getFileAsResource(fileMetadata.getOriginalFileName());
+            HttpHeaders responseHeaders = httpHeadersFactory.createFromFileMetadata(fileMetadata);
 
             return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .headers(responseHeaders)
                     .body(resource);
         } catch (MyFileNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
@@ -61,10 +58,10 @@ public class FileController {
 
     }
 
-    @DeleteMapping("/delete/{fileName:.+}")
-    public ResponseEntity<?> deleteFile(@PathVariable("fileName") String fileName) {
+    @DeleteMapping("/delete/{id}")
+    public ResponseEntity<?> deleteFile(@PathVariable("id") Long id) {
         try {
-            fileService.deleteFile(fileName);
+            fileService.deleteFile(id);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
